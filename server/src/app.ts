@@ -2,6 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import dashboardRouter from "./routes/dashboard";
+import patientsRouter from "./routes/patients";
+import providersRouter from "./routes/providers";
+import appointmentsRouter from "./routes/appointments";
 
 dotenv.config();
 
@@ -10,7 +13,6 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
-
 app.use(express.json());
 
 app.get("/", (_req, res) => {
@@ -28,9 +30,10 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/patients", patientsRouter);
+app.use("/api/providers", providersRouter);
+app.use("/api/appointments", appointmentsRouter);
 
 app.listen(PORT, () => {
-  console.log(
-    `Health Care System API running on port ${PORT}`
-  );
+  console.log(`Health Care System API running on port ${PORT}`);
 });
