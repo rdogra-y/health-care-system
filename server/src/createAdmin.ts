@@ -4,24 +4,37 @@ import bcrypt from "bcryptjs";
 import { db } from "./prisma/db";
 
 async function createAdmin() {
-  const email = "admin@healthcare.local";
-  const password = "HealthCareDemo2026!";
+  const email =
+    process.env.DEMO_ADMIN_EMAIL;
 
-  const existingUser = await db.orm.public.User
-    .where({
-      email
-    })
-    .first();
+  const password =
+    process.env.DEMO_ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error(
+      "Demo administrator credentials are not configured"
+    );
+  }
+
+  const existingUser =
+    await db.orm.public.User
+      .where({
+        email
+      })
+      .first();
 
   if (existingUser) {
-    console.log("Demo administrator already exists");
+    console.log(
+      "Demo administrator already exists"
+    );
     return;
   }
 
-  const passwordHash = await bcrypt.hash(
-    password,
-    12
-  );
+  const passwordHash =
+    await bcrypt.hash(
+      password,
+      12
+    );
 
   await db.orm.public.User.create({
     email,
@@ -31,7 +44,9 @@ async function createAdmin() {
     role: "ADMIN"
   });
 
-  console.log("Demo administrator created");
+  console.log(
+    "Demo administrator created"
+  );
 }
 
 createAdmin()
