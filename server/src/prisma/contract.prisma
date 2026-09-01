@@ -1,0 +1,90 @@
+// use prisma-next
+
+enum UserRole {
+  ADMIN
+  DOCTOR
+  RECEPTIONIST
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CHECKED_IN
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+}
+
+model Department {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  providers   Provider[]
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+}
+
+model Provider {
+  id           Int           @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  email        String        @unique
+  phone        String?
+  specialty    String
+  departmentId Int
+  department   Department    @relation(fields: [departmentId], references: [id])
+  appointments Appointment[]
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+}
+
+model Patient {
+  id           Int           @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  dateOfBirth  String
+  gender       String?
+  address      String?
+  appointments Appointment[]
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+}
+
+model Appointment {
+  id            Int               @id @default(autoincrement())
+  patientId     Int
+  providerId    Int
+  patient       Patient           @relation(fields: [patientId], references: [id])
+  provider      Provider          @relation(fields: [providerId], references: [id])
+  scheduledAt   TimestamptzString
+  status        AppointmentStatus @default(SCHEDULED)
+  reason        String?
+  notes         String?
+  checkedInAt   TimestamptzString?
+  startedAt     TimestamptzString?
+  completedAt   TimestamptzString?
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+}

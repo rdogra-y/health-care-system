@@ -34,3 +34,13 @@ Thumbs.db
 coverage/
 playwright-report/
 test-results/
+
+# Prisma AI agent files
+.agents/
+.claude/
+.cursor/
+.devin/
+server/.agents/
+server/.claude/
+server/.cursor/
+server/.devin/
