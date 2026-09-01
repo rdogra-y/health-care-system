@@ -1,12 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
-
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent
+} from "react";
 import { apiFetch } from "../utils/api";
+
+type AppointmentStatus =
+  | "SCHEDULED"
+  | "CHECKED_IN"
+  | "WAITING"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED";
+
 type Appointment = {
   id: number;
   patientId: number;
   providerId: number;
   scheduledAt: string;
-  status: string;
+  status: AppointmentStatus;
   reason: string | null;
   notes: string | null;
   checkedInAt?: string | null;
@@ -27,26 +40,69 @@ type Provider = {
   specialty: string;
 };
 
+type AppointmentForm = {
+  patientId: string;
+  providerId: string;
+  scheduledAt: string;
+  reason: string;
+};
+
+const emptyForm: AppointmentForm = {
+  patientId: "",
+  providerId: "",
+  scheduledAt: "",
+  reason: ""
+};
+
+const filters: Array<"ALL" | AppointmentStatus> = [
+  "ALL",
+  "SCHEDULED",
+  "CHECKED_IN",
+  "WAITING",
+  "IN_PROGRESS",
+  "COMPLETED"
+];
+
 function Appointments() {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [appointments, setAppointments] =
+    useState<Appointment[]>([]);
 
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [filter, setFilter] = useState("ALL");
-  const [submitting, setSubmitting] = useState(false);
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [patients, setPatients] =
+    useState<Patient[]>([]);
 
-  const [form, setForm] = useState({
-    patientId: "",
-    providerId: "",
-    scheduledAt: "",
-    reason: ""
-  });
+  const [providers, setProviders] =
+    useState<Provider[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [showForm, setShowForm] =
+    useState(false);
+
+  const [filter, setFilter] =
+    useState<"ALL" | AppointmentStatus>("ALL");
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [updatingId, setUpdatingId] =
+    useState<number | null>(null);
+
+  const [
+    dateTimeConfirmed,
+    setDateTimeConfirmed
+  ] = useState(false);
+
+  const [formError, setFormError] =
+    useState("");
+
+  const [form, setForm] =
+    useState<AppointmentForm>(emptyForm);
 
   async function loadData() {
     try {
+      setLoading(true);
+
       const [
         appointmentsResponse,
         patientsResponse,
@@ -62,18 +118,36 @@ function Appointments() {
         !patientsResponse.ok ||
         !providersResponse.ok
       ) {
-        throw new Error("Unable to load appointment workspace");
+        throw new Error(
+          "Unable to load appointment workspace"
+        );
       }
 
-      const appointmentsResult = await appointmentsResponse.json();
-      const patientsResult = await patientsResponse.json();
-      const providersResult = await providersResponse.json();
+      const appointmentsResult =
+        await appointmentsResponse.json();
 
-      setAppointments(appointmentsResult.data ?? []);
-      setPatients(patientsResult.data ?? []);
-      setProviders(providersResult.data ?? []);
+      const patientsResult =
+        await patientsResponse.json();
+
+      const providersResult =
+        await providersResponse.json();
+
+      setAppointments(
+        appointmentsResult.data ?? []
+      );
+
+      setPatients(
+        patientsResult.data ?? []
+      );
+
+      setProviders(
+        providersResult.data ?? []
+      );
     } catch (error) {
-      console.error("Unable to load appointment workspace:", error);
+      console.error(
+        "Unable to load appointment workspace:",
+        error
+      );
     } finally {
       setLoading(false);
     }
@@ -83,69 +157,129 @@ function Appointments() {
     loadData();
   }, []);
 
-  const filteredAppointments = useMemo(() => {
-    if (filter === "ALL") {
-      return appointments;
-    }
+  const filteredAppointments =
+    useMemo(() => {
+      if (filter === "ALL") {
+        return appointments;
+      }
 
-    return appointments.filter(
-      (appointment) => appointment.status === filter
-    );
-  }, [appointments, filter]);
+      return appointments.filter(
+        (appointment) =>
+          appointment.status === filter
+      );
+    }, [appointments, filter]);
 
   function getPatient(patientId: number) {
     return patients.find(
-      (patient) => patient.id === patientId
+      (patient) =>
+        patient.id === patientId
     );
   }
 
   function getProvider(providerId: number) {
     return providers.find(
-      (provider) => provider.id === providerId
+      (provider) =>
+        provider.id === providerId
     );
   }
 
   async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-    setSubmitting(true);
 
-    try {
-      const response = await apiFetch("/appointments",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            patientId: Number(form.patientId),
-            providerId: Number(form.providerId),
-            scheduledAt: new Date(
-              form.scheduledAt
-            ).toISOString(),
-            reason: form.reason
-          })
-        }
+    setFormError("");
+
+    if (
+      !form.patientId ||
+      !form.providerId
+    ) {
+      setFormError(
+        "Select both a patient and a provider."
+      );
+      return;
+    }
+
+    if (!form.scheduledAt) {
+      setFormError(
+        "Select an appointment date and time."
+      );
+      return;
+    }
+
+    if (!dateTimeConfirmed) {
+      setFormError(
+        "Confirm the appointment date and time before scheduling."
+      );
+      return;
+    }
+
+    const selectedDate =
+      new Date(form.scheduledAt);
+
+    if (
+      Number.isNaN(
+        selectedDate.getTime()
+      ) ||
+      selectedDate <= new Date()
+    ) {
+      setDateTimeConfirmed(false);
+
+      setFormError(
+        "Appointment must be scheduled for a future date and time."
       );
 
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const response =
+        await apiFetch(
+          "/appointments",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              patientId: Number(
+                form.patientId
+              ),
+              providerId: Number(
+                form.providerId
+              ),
+              scheduledAt:
+                selectedDate.toISOString(),
+              reason:
+                form.reason.trim()
+            })
+          }
+        );
+
+      const result =
+        await response.json();
+
       if (!response.ok) {
-        throw new Error("Unable to schedule appointment");
+        setFormError(
+          result.message ||
+            "Unable to schedule appointment."
+        );
+        return;
       }
 
-      setForm({
-        patientId: "",
-        providerId: "",
-        scheduledAt: "",
-        reason: ""
-      });
-
+      setForm(emptyForm);
+      setDateTimeConfirmed(false);
+      setFormError("");
       setShowForm(false);
+
       await loadData();
     } catch (error) {
       console.error(
         "Appointment creation error:",
         error
+      );
+
+      setFormError(
+        "Unable to schedule appointment."
       );
     } finally {
       setSubmitting(false);
@@ -153,31 +287,45 @@ function Appointments() {
   }
 
   async function updateAppointmentStatus(
-    appointmentId: number,
-    status: string
+    id: number,
+    status: AppointmentStatus
   ) {
-    setUpdatingId(appointmentId);
-
     try {
-      const response = await apiFetch(`/appointments/${appointmentId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            status
-          })
-        }
-      );
+      setUpdatingId(id);
+
+      const response =
+        await apiFetch(
+          `/appointments/${id}/status`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({
+              status
+            })
+          }
+        );
+
+      const result =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          "Unable to update appointment status"
+          result.message ||
+            "Unable to update appointment"
         );
       }
 
-      await loadData();
+      setAppointments(
+        (current) =>
+          current.map(
+            (appointment) =>
+              appointment.id === id
+                ? {
+                    ...appointment,
+                    ...result.data
+                  }
+                : appointment
+          )
+      );
     } catch (error) {
       console.error(
         "Appointment status update error:",
@@ -188,41 +336,110 @@ function Appointments() {
     }
   }
 
-  function getNextStatus(status: string) {
-    const workflow: Record<string, string> = {
-      SCHEDULED: "CHECKED_IN",
-      CHECKED_IN: "WAITING",
-      WAITING: "IN_PROGRESS",
-      IN_PROGRESS: "COMPLETED"
-    };
+  function getNextStatus(
+    status: AppointmentStatus
+  ): AppointmentStatus | null {
+    switch (status) {
+      case "SCHEDULED":
+        return "CHECKED_IN";
 
-    return workflow[status];
+      case "CHECKED_IN":
+        return "WAITING";
+
+      case "WAITING":
+        return "IN_PROGRESS";
+
+      case "IN_PROGRESS":
+        return "COMPLETED";
+
+      default:
+        return null;
+    }
   }
 
-  const scheduledCount = appointments.filter(
-    (appointment) =>
-      appointment.status === "SCHEDULED"
-  ).length;
+  function getActionLabel(
+    status: AppointmentStatus
+  ) {
+    switch (status) {
+      case "SCHEDULED":
+        return "Check in";
 
-  const checkedInCount = appointments.filter(
-    (appointment) =>
-      appointment.status === "CHECKED_IN"
-  ).length;
+      case "CHECKED_IN":
+        return "Send to waiting";
 
-  const waitingCount = appointments.filter(
-    (appointment) =>
-      appointment.status === "WAITING"
-  ).length;
+      case "WAITING":
+        return "Begin visit";
 
-  const inProgressCount = appointments.filter(
-    (appointment) =>
-      appointment.status === "IN_PROGRESS"
-  ).length;
+      case "IN_PROGRESS":
+        return "Complete";
 
-  const completedCount = appointments.filter(
-    (appointment) =>
-      appointment.status === "COMPLETED"
-  ).length;
+      default:
+        return null;
+    }
+  }
+
+  function confirmDateTime() {
+    setFormError("");
+
+    if (!form.scheduledAt) {
+      setFormError(
+        "Select an appointment date and time first."
+      );
+      return;
+    }
+
+    const selected =
+      new Date(form.scheduledAt);
+
+    if (
+      Number.isNaN(
+        selected.getTime()
+      ) ||
+      selected <= new Date()
+    ) {
+      setDateTimeConfirmed(false);
+
+      setFormError(
+        "Please select a future appointment date and time."
+      );
+
+      return;
+    }
+
+    setDateTimeConfirmed(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setForm(emptyForm);
+    setDateTimeConfirmed(false);
+    setFormError("");
+  }
+
+  const scheduledCount =
+    appointments.filter(
+      (appointment) =>
+        appointment.status ===
+        "SCHEDULED"
+    ).length;
+
+  const activeCount =
+    appointments.filter(
+      (appointment) =>
+        appointment.status ===
+          "CHECKED_IN" ||
+        appointment.status ===
+          "WAITING" ||
+        appointment.status ===
+          "IN_PROGRESS"
+    ).length;
+
+  const completedCount =
+    appointments.filter(
+      (appointment) =>
+        appointment.status ===
+        "COMPLETED"
+    ).length;
 
   return (
     <div className="appointments-page">
@@ -232,17 +449,22 @@ function Appointments() {
             CARE COORDINATION
           </span>
 
-          <h1>The day's clinical rhythm.</h1>
+          <h1>
+            The day's clinical rhythm.
+          </h1>
 
           <p>
-            Coordinate visits, monitor patient flow and
-            manage provider schedules.
+            Coordinate visits, monitor patient
+            flow and manage provider schedules.
           </p>
         </div>
 
         <button
+          type="button"
           className="new-button"
-          onClick={() => setShowForm(true)}
+          onClick={() =>
+            setShowForm(true)
+          }
         >
           Schedule appointment
         </button>
@@ -250,10 +472,14 @@ function Appointments() {
 
       <section className="appointment-summary">
         <div className="appointment-summary-main">
-          <span>ACTIVE WORKSPACE</span>
+          <span>
+            ACTIVE WORKSPACE
+          </span>
 
           <strong>
-            {String(appointments.length).padStart(2, "0")}
+            {String(
+              appointments.length
+            ).padStart(2, "0")}
           </strong>
 
           <p>Total appointments</p>
@@ -264,7 +490,10 @@ function Appointments() {
 
           <div>
             <span>Scheduled</span>
-            <strong>{scheduledCount}</strong>
+
+            <strong>
+              {scheduledCount}
+            </strong>
           </div>
         </div>
 
@@ -273,10 +502,9 @@ function Appointments() {
 
           <div>
             <span>Active queue</span>
+
             <strong>
-              {checkedInCount +
-                waitingCount +
-                inProgressCount}
+              {activeCount}
             </strong>
           </div>
         </div>
@@ -286,7 +514,10 @@ function Appointments() {
 
           <div>
             <span>Completed</span>
-            <strong>{completedCount}</strong>
+
+            <strong>
+              {completedCount}
+            </strong>
           </div>
         </div>
       </section>
@@ -302,26 +533,28 @@ function Appointments() {
           </div>
 
           <div className="appointment-filters">
-            {[
-              "ALL",
-              "SCHEDULED",
-              "CHECKED_IN",
-              "WAITING",
-              "IN_PROGRESS",
-              "COMPLETED"
-            ].map((status) => (
-              <button
-                key={status}
-                className={
-                  filter === status ? "selected" : ""
-                }
-                onClick={() => setFilter(status)}
-              >
-                {status === "ALL"
-                  ? "All"
-                  : formatStatus(status)}
-              </button>
-            ))}
+            {filters.map(
+              (status) => (
+                <button
+                  type="button"
+                  key={status}
+                  className={
+                    filter === status
+                      ? "selected"
+                      : ""
+                  }
+                  onClick={() =>
+                    setFilter(status)
+                  }
+                >
+                  {status === "ALL"
+                    ? "All"
+                    : formatStatus(
+                        status
+                      )}
+                </button>
+              )
+            )}
           </div>
         </div>
 
@@ -329,33 +562,49 @@ function Appointments() {
           <div className="empty-state">
             Loading appointments...
           </div>
-        ) : filteredAppointments.length === 0 ? (
+        ) : filteredAppointments.length ===
+          0 ? (
           <div className="empty-state">
             No appointments in this view.
           </div>
         ) : (
           <div className="appointment-list">
             {filteredAppointments.map(
-              (appointment, index) => {
-                const patient = getPatient(
-                  appointment.patientId
-                );
+              (
+                appointment,
+                index
+              ) => {
+                const patient =
+                  getPatient(
+                    appointment.patientId
+                  );
 
-                const provider = getProvider(
-                  appointment.providerId
-                );
+                const provider =
+                  getProvider(
+                    appointment.providerId
+                  );
 
-                const nextStatus = getNextStatus(
-                  appointment.status
-                );
+                const nextStatus =
+                  getNextStatus(
+                    appointment.status
+                  );
+
+                const actionLabel =
+                  getActionLabel(
+                    appointment.status
+                  );
 
                 return (
                   <article
                     className="appointment-record"
-                    key={appointment.id}
+                    key={
+                      appointment.id
+                    }
                   >
                     <div className="appointment-index">
-                      {String(index + 1).padStart(
+                      {String(
+                        index + 1
+                      ).padStart(
                         2,
                         "0"
                       )}
@@ -377,11 +626,13 @@ function Appointments() {
 
                     <div className="appointment-person">
                       <div className="patient-initials">
-                        {patient?.firstName.charAt(0) ??
-                          "P"}
+                        {patient?.firstName.charAt(
+                          0
+                        ) ?? "P"}
 
-                        {patient?.lastName.charAt(0) ??
-                          ""}
+                        {patient?.lastName.charAt(
+                          0
+                        ) ?? ""}
                       </div>
 
                       <div>
@@ -399,7 +650,9 @@ function Appointments() {
                     </div>
 
                     <div className="appointment-provider">
-                      <span>PROVIDER</span>
+                      <span>
+                        PROVIDER
+                      </span>
 
                       <strong>
                         {provider
@@ -424,8 +677,10 @@ function Appointments() {
                     </div>
 
                     <div className="appointment-actions">
-                      {nextStatus && (
+                      {nextStatus &&
+                      actionLabel ? (
                         <button
+                          type="button"
                           className="workflow-button"
                           disabled={
                             updatingId ===
@@ -441,29 +696,19 @@ function Appointments() {
                           {updatingId ===
                           appointment.id
                             ? "Updating..."
-                            : getActionLabel(
-                                appointment.status
-                              )}
+                            : actionLabel}
 
-                          {updatingId !==
-                            appointment.id && (
-                            <span>→</span>
-                          )}
+                          <span>
+                            →
+                          </span>
                         </button>
-                      )}
-
-                      {appointment.status ===
-                        "COMPLETED" && (
+                      ) : appointment.status ===
+                        "COMPLETED" ? (
                         <span className="workflow-complete">
-                          Closed
+                          Complete
                         </span>
-                      )}
-
-                      {appointment.status ===
-                        "CANCELLED" && (
-                        <span className="workflow-cancelled">
-                          Cancelled
-                        </span>
+                      ) : (
+                        <span />
                       )}
                     </div>
                   </article>
@@ -477,9 +722,7 @@ function Appointments() {
       {showForm && (
         <div
           className="modal-backdrop"
-          onMouseDown={() =>
-            setShowForm(false)
-          }
+          onMouseDown={closeForm}
         >
           <form
             className="patient-modal appointment-modal"
@@ -487,6 +730,7 @@ function Appointments() {
             onMouseDown={(event) =>
               event.stopPropagation()
             }
+            noValidate
           >
             <div className="modal-heading">
               <div>
@@ -494,28 +738,47 @@ function Appointments() {
                   CARE COORDINATION
                 </span>
 
-                <h2>Schedule appointment</h2>
+                <h2>
+                  Schedule appointment
+                </h2>
               </div>
 
               <button
                 type="button"
                 className="modal-close"
-                onClick={() =>
-                  setShowForm(false)
-                }
+                onClick={closeForm}
               >
                 ×
               </button>
             </div>
 
             <div className="appointment-form-intro">
-              <span>NEW VISIT</span>
+              <span>
+                NEW VISIT
+              </span>
 
               <p>
-                Connect a patient with an available
-                healthcare provider.
+                Connect a patient with an
+                available healthcare provider.
               </p>
             </div>
+
+            {formError && (
+              <div
+                style={{
+                  marginBottom: "16px",
+                  padding: "11px 14px",
+                  borderRadius: "10px",
+                  background:
+                    "#f7e8e5",
+                  color: "#913f36",
+                  fontSize: "11px",
+                  fontWeight: 700
+                }}
+              >
+                {formError}
+              </div>
+            )}
 
             <div className="form-grid">
               <label>
@@ -523,8 +786,12 @@ function Appointments() {
 
                 <select
                   required
-                  value={form.patientId}
-                  onChange={(event) =>
+                  value={
+                    form.patientId
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     setForm({
                       ...form,
                       patientId:
@@ -536,15 +803,25 @@ function Appointments() {
                     Select patient
                   </option>
 
-                  {patients.map((patient) => (
-                    <option
-                      key={patient.id}
-                      value={patient.id}
-                    >
-                      {patient.firstName}{" "}
-                      {patient.lastName}
-                    </option>
-                  ))}
+                  {patients.map(
+                    (patient) => (
+                      <option
+                        key={
+                          patient.id
+                        }
+                        value={
+                          patient.id
+                        }
+                      >
+                        {
+                          patient.firstName
+                        }{" "}
+                        {
+                          patient.lastName
+                        }
+                      </option>
+                    )
+                  )}
                 </select>
               </label>
 
@@ -553,8 +830,12 @@ function Appointments() {
 
                 <select
                   required
-                  value={form.providerId}
-                  onChange={(event) =>
+                  value={
+                    form.providerId
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     setForm({
                       ...form,
                       providerId:
@@ -566,42 +847,108 @@ function Appointments() {
                     Select provider
                   </option>
 
-                  {providers.map((provider) => (
-                    <option
-                      key={provider.id}
-                      value={provider.id}
-                    >
-                      Dr. {provider.firstName}{" "}
-                      {provider.lastName}
-                    </option>
-                  ))}
+                  {providers.map(
+                    (provider) => (
+                      <option
+                        key={
+                          provider.id
+                        }
+                        value={
+                          provider.id
+                        }
+                      >
+                        Dr.{" "}
+                        {
+                          provider.firstName
+                        }{" "}
+                        {
+                          provider.lastName
+                        }
+                      </option>
+                    )
+                  )}
                 </select>
               </label>
 
-              <label className="full-field">
-                Appointment date and time
+              <div className="full-field">
+                <label>
+                  Appointment date and time
 
-                <input
-                  required
-                  type="datetime-local"
-                  value={form.scheduledAt}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      scheduledAt:
-                        event.target.value
-                    })
+                  <input
+                    required
+                    type="datetime-local"
+                    min={
+                      getMinimumDateTime()
+                    }
+                    value={
+                      form.scheduledAt
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      setForm({
+                        ...form,
+                        scheduledAt:
+                          event.target.value
+                      });
+
+                      setDateTimeConfirmed(
+                        false
+                      );
+
+                      setFormError("");
+                    }}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  className="cancel-button"
+                  style={{
+                    marginTop: "10px"
+                  }}
+                  disabled={
+                    !form.scheduledAt
                   }
-                />
-              </label>
+                  onClick={
+                    confirmDateTime
+                  }
+                >
+                  Confirm date & time
+                </button>
+
+                {dateTimeConfirmed && (
+                  <p
+                    style={{
+                      margin:
+                        "8px 0 0",
+                      color:
+                        "#386153",
+                      fontSize:
+                        "11px",
+                      fontWeight:
+                        700
+                    }}
+                  >
+                    Confirmed:{" "}
+                    {new Date(
+                      form.scheduledAt
+                    ).toLocaleString()}
+                  </p>
+                )}
+              </div>
 
               <label className="full-field">
                 Reason for visit
 
                 <textarea
-                  value={form.reason}
+                  value={
+                    form.reason
+                  }
                   placeholder="Brief appointment purpose"
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     setForm({
                       ...form,
                       reason:
@@ -616,9 +963,7 @@ function Appointments() {
               <button
                 type="button"
                 className="cancel-button"
-                onClick={() =>
-                  setShowForm(false)
-                }
+                onClick={closeForm}
               >
                 Cancel
               </button>
@@ -626,7 +971,10 @@ function Appointments() {
               <button
                 type="submit"
                 className="new-button"
-                disabled={submitting}
+                disabled={
+                  submitting ||
+                  !dateTimeConfirmed
+                }
               >
                 {submitting
                   ? "Scheduling..."
@@ -640,45 +988,56 @@ function Appointments() {
   );
 }
 
-function getActionLabel(status: string) {
-  const labels: Record<string, string> = {
-    SCHEDULED: "Check in",
-    CHECKED_IN: "Send to waiting",
-    WAITING: "Begin visit",
-    IN_PROGRESS: "Complete"
-  };
+function getMinimumDateTime() {
+  const now =
+    new Date();
 
-  return labels[status] ?? "";
+  const local =
+    new Date(
+      now.getTime() -
+        now.getTimezoneOffset() *
+          60_000
+    );
+
+  return local
+    .toISOString()
+    .slice(0, 16);
 }
 
-function formatStatus(status: string) {
+function formatStatus(
+  status: string
+) {
   return status
     .toLowerCase()
     .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) =>
-      letter.toUpperCase()
+    .replace(
+      /\b\w/g,
+      (letter) =>
+        letter.toUpperCase()
     );
 }
 
-function formatTime(value: string) {
-  return new Date(value).toLocaleTimeString(
-    [],
-    {
-      hour: "2-digit",
-      minute: "2-digit"
-    }
-  );
+function formatTime(
+  value: string
+) {
+  return new Date(
+    value
+  ).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(
-    [],
-    {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    }
-  );
+function formatDate(
+  value: string
+) {
+  return new Date(
+    value
+  ).toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
 }
 
 export default Appointments;

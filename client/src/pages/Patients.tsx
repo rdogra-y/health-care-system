@@ -4,7 +4,6 @@ import {
   useState,
   type FormEvent
 } from "react";
-
 import { apiFetch } from "../utils/api";
 
 type Patient = {
@@ -18,52 +17,61 @@ type Patient = {
   address: string | null;
 };
 
-function Patients() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+const emptyForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  dateOfBirth: "",
+  gender: "",
+  address: ""
+};
 
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    dateOfBirth: "",
-    gender: "",
-    address: ""
-  });
+function Patients() {
+  const [patients, setPatients] =
+    useState<Patient[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [search, setSearch] =
+    useState("");
+
+  const [showForm, setShowForm] =
+    useState(false);
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [form, setForm] =
+    useState(emptyForm);
 
   async function loadPatients() {
     try {
-      setError("");
+      setLoading(true);
 
-      const response = await apiFetch("/patients");
+      const response =
+        await apiFetch("/patients");
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error("Your session has expired. Please sign in again.");
-        }
-
-        if (response.status === 403) {
-          throw new Error("You do not have permission to view patients.");
-        }
-
-        throw new Error("Unable to load patients.");
+        throw new Error(
+          "Unable to load patients"
+        );
       }
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
-      setPatients(result.data ?? []);
+      setPatients(
+        result.data ?? []
+      );
     } catch (error) {
-      console.error("Unable to load patients:", error);
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to load patients."
+      console.error(
+        "Patients error:",
+        error
       );
     } finally {
       setLoading(false);
@@ -74,76 +82,204 @@ function Patients() {
     loadPatients();
   }, []);
 
-  const filteredPatients = useMemo(() => {
-    const query = search.toLowerCase().trim();
+  const filteredPatients =
+    useMemo(() => {
+      const value =
+        search
+          .trim()
+          .toLowerCase();
 
-    if (!query) {
-      return patients;
-    }
+      if (!value) {
+        return patients;
+      }
 
-    return patients.filter((patient) =>
-      `${patient.firstName} ${patient.lastName} ${patient.email ?? ""}`
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [patients, search]);
+      return patients.filter(
+        (patient) => {
+          const name =
+            `${patient.firstName} ${patient.lastName}`
+              .toLowerCase();
+
+          return (
+            name.includes(value) ||
+            patient.email
+              ?.toLowerCase()
+              .includes(value) ||
+            patient.phone?.includes(
+              value
+            )
+          );
+        }
+      );
+    }, [patients, search]);
+
+  function updateField(
+    field: keyof typeof form,
+    value: string
+  ) {
+    setForm({
+      ...form,
+      [field]: value
+    });
+
+    setError("");
+  }
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
+    setError("");
+
+    if (
+      !form.firstName.trim() ||
+      !form.lastName.trim() ||
+      !form.email.trim() ||
+      !form.phone.trim() ||
+      !form.dateOfBirth ||
+      !form.address.trim()
+    ) {
+      setError(
+        "First name, last name, email, phone, date of birth and address are required."
+      );
+      return;
+    }
+
+    const emailPattern =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (
+      !emailPattern.test(
+        form.email.trim()
+      )
+    ) {
+      setError(
+        "Enter a valid email address."
+      );
+      return;
+    }
+
+    const phoneDigits =
+      form.phone.replace(
+        /\D/g,
+        ""
+      );
+
+    if (
+      phoneDigits.length < 7 ||
+      phoneDigits.length > 15
+    ) {
+      setError(
+        "Enter a valid phone number."
+      );
+      return;
+    }
+
+    const dob =
+      new Date(
+        `${form.dateOfBirth}T00:00:00`
+      );
+
+    if (
+      Number.isNaN(
+        dob.getTime()
+      ) ||
+      dob > new Date()
+    ) {
+      setError(
+        "Date of birth cannot be in the future."
+      );
+      return;
+    }
+
+    if (
+      form.address
+        .trim()
+        .length < 5
+    ) {
+      setError(
+        "Enter a valid address."
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
-      setError("");
 
-      const response = await apiFetch("/patients", {
-        method: "POST",
-        body: JSON.stringify(form)
-      });
+      const response =
+        await apiFetch(
+          "/patients",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              firstName:
+                form.firstName.trim(),
+              lastName:
+                form.lastName.trim(),
+              email:
+                form.email.trim(),
+              phone:
+                form.phone.trim(),
+              dateOfBirth:
+                form.dateOfBirth,
+              gender:
+                form.gender.trim(),
+              address:
+                form.address.trim()
+            })
+          }
+        );
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error("Your session has expired. Please sign in again.");
-        }
+        if (result.errors) {
+          const messages =
+            Object.values(
+              result.errors
+            )
+              .flat()
+              .filter(Boolean)
+              .join(" ");
 
-        if (response.status === 403) {
-          throw new Error(
-            "You do not have permission to register patients."
+          setError(
+            messages ||
+              result.message
+          );
+        } else {
+          setError(
+            result.message ||
+              "Unable to add patient."
           );
         }
 
-        throw new Error(
-          result.message || "Unable to create patient."
-        );
+        return;
       }
 
-      setForm({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        dateOfBirth: "",
-        gender: "",
-        address: ""
-      });
-
+      setForm(emptyForm);
+      setError("");
       setShowForm(false);
 
       await loadPatients();
     } catch (error) {
-      console.error("Create patient error:", error);
+      console.error(
+        "Create patient error:",
+        error
+      );
 
       setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to create patient."
+        "Unable to add patient."
       );
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function closeModal() {
+    setShowForm(false);
+    setForm(emptyForm);
+    setError("");
   }
 
   return (
@@ -154,54 +290,58 @@ function Patients() {
             PATIENT DIRECTORY
           </span>
 
-          <h1>People under your care.</h1>
+          <h1>
+            People at the center of care.
+          </h1>
 
           <p>
-            Search, register and manage patient records
-            from one workspace.
+            Search patient records
+            and register new patients
+            securely.
           </p>
         </div>
 
         <button
+          type="button"
           className="new-button"
-          onClick={() => {
-            setError("");
-            setShowForm(true);
-          }}
+          onClick={() =>
+            setShowForm(true)
+          }
         >
-          Register patient
+          Add patient
         </button>
       </header>
 
-      {error && !showForm && (
-        <div className="login-error">
-          {error}
-        </div>
-      )}
-
-      <section className="directory-toolbar">
+      <div className="directory-toolbar">
         <div className="patient-count">
-          <strong>{patients.length}</strong>
-          <span>registered patients</span>
+          <strong>
+            {patients.length}
+          </strong>
+
+          <span>
+            REGISTERED PATIENTS
+          </span>
         </div>
 
         <input
           className="patient-search"
           type="search"
-          placeholder="Search patient name or email"
+          placeholder="Search patients"
           value={search}
           onChange={(event) =>
-            setSearch(event.target.value)
+            setSearch(
+              event.target.value
+            )
           }
         />
-      </section>
+      </div>
 
       <section className="patient-table-card">
         <div className="table-head">
           <span>Patient</span>
           <span>Contact</span>
           <span>Date of birth</span>
-          <span>Location</span>
+          <span>Address</span>
           <span />
         </div>
 
@@ -209,107 +349,134 @@ function Patients() {
           <div className="empty-state">
             Loading patients...
           </div>
-        ) : filteredPatients.length === 0 ? (
+        ) : filteredPatients.length ===
+          0 ? (
           <div className="empty-state">
             No patients found.
           </div>
         ) : (
-          filteredPatients.map((patient) => (
-            <div
-              className="patient-row"
-              key={patient.id}
-            >
-              <div className="patient-identity">
-                <div className="patient-initials">
-                  {patient.firstName.charAt(0)}
-                  {patient.lastName.charAt(0)}
+          filteredPatients.map(
+            (patient) => (
+              <article
+                className="patient-row"
+                key={
+                  patient.id
+                }
+              >
+                <div className="patient-identity">
+                  <div className="patient-initials">
+                    {patient.firstName.charAt(
+                      0
+                    )}
+                    {patient.lastName.charAt(
+                      0
+                    )}
+                  </div>
+
+                  <div>
+                    <strong>
+                      {
+                        patient.firstName
+                      }{" "}
+                      {
+                        patient.lastName
+                      }
+                    </strong>
+
+                    <span>
+                      ID #
+                      {String(
+                        patient.id
+                      ).padStart(
+                        4,
+                        "0"
+                      )}
+                    </span>
+                  </div>
                 </div>
 
-                <div>
+                <div className="patient-detail">
                   <strong>
-                    {patient.firstName}{" "}
-                    {patient.lastName}
+                    {patient.email ||
+                      "No email"}
                   </strong>
 
                   <span>
-                    Patient #
-                    {String(patient.id).padStart(
-                      4,
-                      "0"
-                    )}
+                    {patient.phone ||
+                      "No phone"}
                   </span>
                 </div>
-              </div>
 
-              <div className="patient-detail">
-                <strong>
-                  {patient.email || "No email"}
-                </strong>
+                <div className="patient-detail">
+                  <strong>
+                    {formatDate(
+                      patient.dateOfBirth
+                    )}
+                  </strong>
 
-                <span>
-                  {patient.phone || "No phone"}
-                </span>
-              </div>
+                  <span>
+                    Date of birth
+                  </span>
+                </div>
 
-              <div className="patient-detail">
-                <strong>
-                  {patient.dateOfBirth}
-                </strong>
+                <div className="patient-detail">
+                  <strong>
+                    {patient.address ||
+                      "Not provided"}
+                  </strong>
 
-                <span>
-                  {patient.gender ||
-                    "Not specified"}
-                </span>
-              </div>
+                  <span>
+                    {patient.gender ||
+                      "Patient"}
+                  </span>
+                </div>
 
-              <div className="patient-detail">
-                <strong>
-                  {patient.address ||
-                    "Not provided"}
-                </strong>
-
-                <span>Patient record</span>
-              </div>
-
-              <button className="patient-menu">
-                →
-              </button>
-            </div>
-          ))
+                <button
+                  type="button"
+                  className="patient-menu"
+                >
+                  ···
+                </button>
+              </article>
+            )
+          )
         )}
       </section>
 
       {showForm && (
         <div
           className="modal-backdrop"
-          onMouseDown={() => {
-            if (!submitting) {
-              setShowForm(false);
-            }
-          }}
+          onMouseDown={
+            closeModal
+          }
         >
           <form
             className="patient-modal"
-            onSubmit={handleSubmit}
-            onMouseDown={(event) =>
+            onSubmit={
+              handleSubmit
+            }
+            onMouseDown={(
+              event
+            ) =>
               event.stopPropagation()
             }
           >
             <div className="modal-heading">
               <div>
                 <span className="section-tag">
-                  NEW RECORD
+                  PATIENT REGISTRATION
                 </span>
 
-                <h2>Register patient</h2>
+                <h2>
+                  Add patient
+                </h2>
               </div>
 
               <button
                 type="button"
                 className="modal-close"
-                disabled={submitting}
-                onClick={() =>
-                  setShowForm(false)
+                onClick={
+                  closeModal
                 }
               >
                 ×
@@ -317,7 +484,24 @@ function Patients() {
             </div>
 
             {error && (
-              <div className="login-error">
+              <div
+                style={{
+                  marginBottom:
+                    "16px",
+                  padding:
+                    "11px 14px",
+                  borderRadius:
+                    "10px",
+                  background:
+                    "#f7e8e5",
+                  color:
+                    "#913f36",
+                  fontSize:
+                    "11px",
+                  fontWeight:
+                    700
+                }}
+              >
                 {error}
               </div>
             )}
@@ -325,99 +509,127 @@ function Patients() {
             <div className="form-grid">
               <label>
                 First name
-
                 <input
                   required
-                  value={form.firstName}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      firstName:
-                        event.target.value
-                    })
+                  type="text"
+                  value={
+                    form.firstName
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "firstName",
+                      event.target
+                        .value
+                    )
                   }
                 />
               </label>
 
               <label>
                 Last name
-
                 <input
                   required
-                  value={form.lastName}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      lastName:
-                        event.target.value
-                    })
+                  type="text"
+                  value={
+                    form.lastName
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "lastName",
+                      event.target
+                        .value
+                    )
                   }
                 />
               </label>
 
               <label>
                 Email
-
                 <input
+                  required
                   type="email"
-                  value={form.email}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      email:
-                        event.target.value
-                    })
+                  placeholder="name@example.com"
+                  value={
+                    form.email
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "email",
+                      event.target
+                        .value
+                    )
                   }
                 />
               </label>
 
               <label>
                 Phone
-
                 <input
-                  value={form.phone}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      phone:
-                        event.target.value
-                    })
+                  required
+                  type="tel"
+                  placeholder="+1 204 555 0123"
+                  value={
+                    form.phone
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "phone",
+                      event.target
+                        .value
+                    )
                   }
                 />
               </label>
 
               <label>
                 Date of birth
-
                 <input
                   required
                   type="date"
-                  value={form.dateOfBirth}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      dateOfBirth:
-                        event.target.value
-                    })
+                  max={
+                    getToday()
+                  }
+                  value={
+                    form.dateOfBirth
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "dateOfBirth",
+                      event.target
+                        .value
+                    )
                   }
                 />
               </label>
 
               <label>
                 Gender
-
                 <select
-                  value={form.gender}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      gender:
-                        event.target.value
-                    })
+                  value={
+                    form.gender
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "gender",
+                      event.target
+                        .value
+                    )
                   }
                 >
                   <option value="">
-                    Select
+                    Select gender
                   </option>
 
                   <option value="Female">
@@ -428,8 +640,8 @@ function Patients() {
                     Male
                   </option>
 
-                  <option value="Other">
-                    Other
+                  <option value="Non-binary">
+                    Non-binary
                   </option>
 
                   <option value="Prefer not to say">
@@ -440,15 +652,20 @@ function Patients() {
 
               <label className="full-field">
                 Address
-
-                <input
-                  value={form.address}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      address:
-                        event.target.value
-                    })
+                <textarea
+                  required
+                  value={
+                    form.address
+                  }
+                  placeholder="Street, city, province and postal code"
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "address",
+                      event.target
+                        .value
+                    )
                   }
                 />
               </label>
@@ -458,9 +675,8 @@ function Patients() {
               <button
                 type="button"
                 className="cancel-button"
-                disabled={submitting}
-                onClick={() =>
-                  setShowForm(false)
+                onClick={
+                  closeModal
                 }
               >
                 Cancel
@@ -469,17 +685,61 @@ function Patients() {
               <button
                 type="submit"
                 className="new-button"
-                disabled={submitting}
+                disabled={
+                  submitting
+                }
               >
                 {submitting
-                  ? "Creating..."
-                  : "Create patient"}
+                  ? "Adding..."
+                  : "Add patient"}
               </button>
             </div>
           </form>
         </div>
       )}
     </div>
+  );
+}
+
+function getToday() {
+  const now =
+    new Date();
+
+  const local =
+    new Date(
+      now.getTime() -
+        now.getTimezoneOffset() *
+          60_000
+    );
+
+  return local
+    .toISOString()
+    .slice(0, 10);
+}
+
+function formatDate(
+  value: string
+) {
+  const date =
+    new Date(
+      `${value}T00:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    [],
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }
   );
 }
 

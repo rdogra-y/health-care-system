@@ -2652,3 +2652,42 @@ button {
     padding: 60px 30px;
   }
 }
+
+.confirmed-datetime {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #386153;
+}
+
+.field-error {
+  display: block;
+  margin-top: 6px;
+  color: #a33d35;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.form-error-message {
+  margin: 14px 0;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: rgba(163, 61, 53, 0.08);
+  color: #8d312b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.confirmed-datetime {
+  margin: 8px 0 0;
+  color: #386153;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.new-button:disabled,
+.cancel-button:disabled,
+.appointment-more:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
