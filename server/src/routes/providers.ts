@@ -1,9 +1,17 @@
 import { Router } from "express";
 import { db } from "../prisma/db";
+import {
+  authenticate,
+  authorize
+} from "../middleware/auth";
 
 const router = Router();
 
-router.get("/", async (_req, res) => {
+router.get(
+  "/",
+  authenticate,
+  authorize("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  async (_req, res) => {
   try {
     const providers = await db.orm.public.Provider.all();
 

@@ -1,9 +1,17 @@
 import { Router } from "express";
 import { db } from "../prisma/db";
+import {
+  authenticate,
+  authorize
+} from "../middleware/auth";
 
 const router = Router();
 
-router.get("/", async (_req, res) => {
+router.get(
+  "/",
+  authenticate,
+  authorize("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  async (_req, res) => {
   try {
     const appointments = await db.orm.public.Appointment.all();
 
@@ -21,7 +29,11 @@ router.get("/", async (_req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post(
+  "/",
+  authenticate,
+  authorize("ADMIN", "RECEPTIONIST"),
+  async (req, res) => {
   try {
     const {
       patientId,
@@ -61,7 +73,11 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.patch("/:id/status", async (req, res) => {
+router.patch(
+  "/:id/status",
+  authenticate,
+  authorize("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  async (req, res) => {
   try {
     const appointmentId = Number(req.params.id);
     const { status } = req.body;

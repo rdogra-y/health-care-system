@@ -5,6 +5,7 @@ import dashboardRouter from "./routes/dashboard";
 import patientsRouter from "./routes/patients";
 import providersRouter from "./routes/providers";
 import appointmentsRouter from "./routes/appointments";
+import authRouter from "./routes/auth";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
+app.use("/api/auth", authRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/patients", patientsRouter);
 app.use("/api/providers", providersRouter);
