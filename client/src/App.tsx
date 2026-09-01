@@ -4,6 +4,8 @@ import "./App.css";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
 import Appointments from "./pages/Appointments";
+import Providers from "./pages/Providers";
+import Analytics from "./pages/Analytics";
 
 function App() {
   return (
@@ -82,7 +84,7 @@ function App() {
 
           <Route
             path="/providers"
-            element={<ComingSoon title="Providers" />}
+            element={<Providers />}
           />
 
           <Route
