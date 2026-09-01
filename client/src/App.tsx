@@ -1,122 +1,110 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import "./App.css";
+
+import Dashboard from "./pages/Dashboard";
+import Patients from "./pages/Patients";
+import Appointments from "./pages/Appointments";
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="shell">
+      <aside className="rail">
+        <div className="logo">H</div>
 
-      <div className="ticks"></div>
+        <nav>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `rail-button ${isActive ? "active" : ""}`
+            }
+            title="Dashboard"
+          >
+            <span className="icon">H</span>
+          </NavLink>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          <NavLink
+            to="/patients"
+            className={({ isActive }) =>
+              `rail-button ${isActive ? "active" : ""}`
+            }
+            title="Patients"
+          >
+            <span className="icon">P</span>
+          </NavLink>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+          <NavLink
+            to="/appointments"
+            className={({ isActive }) =>
+              `rail-button ${isActive ? "active" : ""}`
+            }
+            title="Appointments"
+          >
+            <span className="icon">A</span>
+          </NavLink>
+
+          <NavLink
+            to="/providers"
+            className={({ isActive }) =>
+              `rail-button ${isActive ? "active" : ""}`
+            }
+            title="Providers"
+          >
+            <span className="icon">D</span>
+          </NavLink>
+
+          <NavLink
+            to="/analytics"
+            className={({ isActive }) =>
+              `rail-button ${isActive ? "active" : ""}`
+            }
+            title="Analytics"
+          >
+            <span className="icon">↗</span>
+          </NavLink>
+        </nav>
+
+        <div className="rail-bottom">
+          <span className="online-dot" />
+          <div className="avatar">RD</div>
+        </div>
+      </aside>
+
+      <main className="workspace">
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/patients" element={<Patients />} />
+
+          <Route
+            path="/appointments"
+            element={<Appointments />}
+          />
+
+          <Route
+            path="/providers"
+            element={<ComingSoon title="Providers" />}
+          />
+
+          <Route
+            path="/analytics"
+            element={<ComingSoon title="Analytics" />}
+          />
+
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </main>
+    </div>
+  );
 }
 
-export default App
+function ComingSoon({ title }: { title: string }) {
+  return (
+    <div className="coming-soon">
+      <span className="section-tag">HEALTH CARE SYSTEM</span>
+      <h1>{title}</h1>
+      <p>This workspace is being prepared.</p>
+    </div>
+  );
+}
+
+export default App;
