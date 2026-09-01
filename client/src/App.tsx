@@ -89,7 +89,7 @@ function App() {
 
           <Route
             path="/analytics"
-            element={<ComingSoon title="Analytics" />}
+            element={<Analytics />}
           />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
