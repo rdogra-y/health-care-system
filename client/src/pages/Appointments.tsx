@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { apiFetch } from "../utils/api";
 type Appointment = {
   id: number;
   patientId: number;
@@ -51,9 +52,9 @@ function Appointments() {
         patientsResponse,
         providersResponse
       ] = await Promise.all([
-        fetch("http://localhost:4000/api/appointments"),
-        fetch("http://localhost:4000/api/patients"),
-        fetch("http://localhost:4000/api/providers")
+        apiFetch("/appointments"),
+        apiFetch("/patients"),
+        apiFetch("/providers")
       ]);
 
       if (
@@ -111,8 +112,7 @@ function Appointments() {
     setSubmitting(true);
 
     try {
-      const response = await fetch(
-        "http://localhost:4000/api/appointments",
+      const response = await apiFetch("/appointments",
         {
           method: "POST",
           headers: {
@@ -159,8 +159,7 @@ function Appointments() {
     setUpdatingId(appointmentId);
 
     try {
-      const response = await fetch(
-        `http://localhost:4000/api/appointments/${appointmentId}/status`,
+      const response = await apiFetch(`/appointments/${appointmentId}/status`,
         {
           method: "PATCH",
           headers: {

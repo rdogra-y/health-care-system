@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { apiFetch } from "../utils/api";
 type Appointment = {
   id: number;
   patientId: number;
@@ -27,8 +28,8 @@ function Analytics() {
     try {
       const [appointmentResponse, providerResponse] =
         await Promise.all([
-          fetch("http://localhost:4000/api/appointments"),
-          fetch("http://localhost:4000/api/providers")
+          apiFetch("/appointments"),
+          apiFetch("/providers")
         ]);
 
       if (!appointmentResponse.ok || !providerResponse.ok) {

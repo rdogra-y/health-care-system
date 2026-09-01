@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "../App.css";
 
+import { apiFetch } from "../utils/api";
 type DashboardData = {
   totalPatients: number;
   totalProviders: number;
@@ -24,7 +25,7 @@ function Dashboard() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const response = await fetch("http://localhost:4000/api/dashboard");
+        const response = await apiFetch("/dashboard");
 
         if (!response.ok) {
           throw new Error("Dashboard request failed");

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { apiFetch } from "../utils/api";
 type Provider = {
   id: number;
   firstName: string;
@@ -28,8 +29,8 @@ function Providers() {
     try {
       const [providerResponse, appointmentResponse] =
         await Promise.all([
-          fetch("http://localhost:4000/api/providers"),
-          fetch("http://localhost:4000/api/appointments")
+          apiFetch("/providers"),
+          apiFetch("/appointments")
         ]);
 
       if (!providerResponse.ok || !appointmentResponse.ok) {
